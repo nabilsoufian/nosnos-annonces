@@ -27,12 +27,17 @@
     background: var(--surface); color: var(--text); font: inherit; font-weight: 600; }
   .tabs button[aria-selected="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
   main { position: relative; }
-  #list { padding: 0 16px 24px; display: grid; gap: 12px; }
+  #list { padding: 0 16px 24px; display: grid; gap: 12px; align-content: start; }
   #map { height: calc(100dvh - 120px); display: none; }
   body.show-map #map { display: block; }
   body.show-map #list { display: none; }
-  .card { display: flex; gap: 12px; background: var(--surface); border: 1px solid var(--line);
-    border-radius: 12px; padding: 10px; color: inherit; text-decoration: none; }
+  .card { position: relative; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; transition: border-color .15s, box-shadow .15s; }
+  .card.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+  .card > a { display: flex; gap: 12px; padding: 10px; padding-right: 48px; color: inherit; text-decoration: none; }
+  .pin { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--bg); font-size: 17px; line-height: 1; cursor: pointer; }
+  .pin:disabled { opacity: .35; cursor: default; }
   .card img, .card .noimg { width: 96px; height: 72px; object-fit: cover; border-radius: 8px;
     background: var(--line); flex: none; }
   .card .t { font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -92,6 +97,31 @@ function sub(l) {
 function isNew(l) { return Date.now() - new Date(l.first_seen) < 3 * 86400000; }
 
 let map, layer;
+const markers = new Map();   // listing key -> Leaflet marker
+const keyOf = l => `${l.source}:${l.source_id}`;
+const BASE_STYLE = { radius: 7, weight: 2 };
+const HOT_STYLE = { radius: 12, weight: 3 };
+const isDesktop = () => matchMedia("(min-width: 900px)").matches;
+
+function highlight(key, { pan = false, popup = false } = {}) {
+  document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
+  for (const m of markers.values()) m.setStyle(BASE_STYLE).setRadius(BASE_STYLE.radius);
+  if (!key) { map.closePopup(); return; }
+  document.querySelector(`.card[data-key="${CSS.escape(key)}"]`)?.classList.add("active");
+  const m = markers.get(key);
+  if (!m) { map.closePopup(); return; }
+  m.setStyle(HOT_STYLE).setRadius(HOT_STYLE.radius).bringToFront();
+  if (pan && !map.getBounds().pad(-0.1).contains(m.getLatLng())) map.panTo(m.getLatLng());
+  if (popup) m.openPopup();
+}
+
+function showOnMap(key) {
+  document.querySelector('.tabs button[data-view="map"]').click();
+  const m = markers.get(key);
+  if (!m) return;
+  map.setView(m.getLatLng(), Math.max(map.getZoom(), 15));
+  highlight(key, { popup: true });
+}
 function initMap() {
   map = L.map("map", { zoomControl: true }).setView([52.2297, 21.0122], 12);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -102,28 +132,57 @@ function initMap() {
 
 function render(listings) {
   const active = listings.filter(l => !l.gone_since);
-  document.getElementById("list").innerHTML = active.length ? active.map(l => `
-    <a class="card" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">
-      ${l.thumbnail ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(l.thumbnail)}" alt="">` : `<div class="noimg"></div>`}
-      <div>
-        <div class="t">${isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</div>
-        <div class="p">${esc(price(l))}</div>
-        <div class="s">${esc(sub(l))}</div>
-        <div class="s">${esc(l.source)} · ${esc(ago(l.created_at || l.first_seen))}</div>
-      </div>
-    </a>`).join("") : `<div class="empty">Aucune annonce pour l'instant.</div>`;
+  const list = document.getElementById("list");
+  list.innerHTML = active.length ? active.map(l => `
+    <div class="card" data-key="${esc(keyOf(l))}">
+      <a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">
+        ${l.thumbnail ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(l.thumbnail)}" alt="">` : `<div class="noimg"></div>`}
+        <div>
+          <div class="t">${isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</div>
+          <div class="p">${esc(price(l))}</div>
+          <div class="s">${esc(sub(l))}</div>
+          <div class="s">${esc(l.source)} · ${esc(ago(l.created_at || l.first_seen))}</div>
+        </div>
+      </a>
+      <button class="pin" type="button" ${l.lat == null ? "disabled" : ""}
+        title="${l.lat == null ? "Position inconnue" : "Voir sur la carte"}"
+        aria-label="${l.lat == null ? "Position inconnue" : "Voir sur la carte"}">📍</button>
+    </div>`).join("") : `<div class="empty">Aucune annonce pour l'instant.</div>`;
 
   layer.clearLayers();
+  markers.clear();
   for (const l of active) {
     if (l.lat == null) continue;
-    L.circleMarker([l.lat, l.lng], {
-      radius: 7, weight: 2, color: "#1A1815", fillColor: isNew(l) ? "#C4963C" : "#7A8C7E",
+    const key = keyOf(l);
+    const m = L.circleMarker([l.lat, l.lng], {
+      ...BASE_STYLE, color: "#1A1815", fillColor: isNew(l) ? "#C4963C" : "#7A8C7E",
       fillOpacity: .9, dashArray: l.location_precise ? null : "3 3"
     }).bindPopup(`<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc(l.title)}</b></a><br>
       ${esc(price(l))}<br>${esc(sub(l))}${l.location_precise ? "" : "<br><i>Position approximative</i>"}`)
       .addTo(layer);
+    // Clicking a marker on desktop brings its card into view.
+    m.on("click", () => {
+      highlight(key);
+      if (isDesktop()) document.querySelector(`.card[data-key="${CSS.escape(key)}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    markers.set(key, m);
   }
 }
+
+// Hover a card (desktop): show where it is on the map. Pin button: jump to the map.
+const listEl = document.getElementById("list");
+listEl.addEventListener("mouseover", e => {
+  const card = e.target.closest(".card");
+  if (card && !card.classList.contains("active") && isDesktop()) highlight(card.dataset.key, { pan: true, popup: true });
+});
+listEl.addEventListener("mouseleave", () => { if (isDesktop()) highlight(null); });
+listEl.addEventListener("click", e => {
+  const pin = e.target.closest(".pin");
+  if (!pin || pin.disabled) return;
+  const key = pin.closest(".card").dataset.key;
+  isDesktop() ? highlight(key, { pan: true, popup: true }) : showOnMap(key);
+});
 
 function renderMeta(meta, listings) {
   const active = listings.filter(l => !l.gone_since).length;
