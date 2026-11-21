@@ -96,19 +96,27 @@ def scrape(area_min: int, area_max: int, known: dict[str, dict]) -> list[Listing
     while page <= total_pages:
         items, total_pages = _search_page(page, area_min, area_max)
         listings += [_to_listing(i) for i in items if i.get("id")]
+        print(f"  otodom: page {page}/{total_pages}, {len(items)} items")
         page += 1
 
     # Otodom repeats promoted ads across pages: keep one per id.
     unique = {l.source_id: l for l in listings}
 
+    to_locate = []
     for listing in unique.values():
         prev = known.get(listing.source_id)
         if prev and prev.get("lat") is not None:
             listing.lat, listing.lng = prev["lat"], prev["lng"]
             listing.location_precise = prev.get("location_precise", False)
-            continue
+        else:
+            to_locate.append(listing)
+
+    print(f"  otodom: {len(unique)} unique listings, {len(to_locate)} need coordinates")
+    for n, listing in enumerate(to_locate, 1):
         try:
             _add_coordinates(listing)
         except Exception as exc:  # one broken detail page must not stop the run
             print(f"  otodom: no coordinates for {listing.source_id}: {exc}")
+        if n % 50 == 0:
+            print(f"  otodom: coordinates {n}/{len(to_locate)}")
     return list(unique.values())
