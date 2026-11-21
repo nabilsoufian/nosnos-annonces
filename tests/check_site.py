@@ -54,6 +54,13 @@ def shown_count(page) -> tuple[int, int]:
     return (int(m.group(1)), int(m.group(2))) if m else (-1, -1)
 
 
+def finger_tap(page, locator) -> None:
+    """Tap the element's centre like a finger would (Playwright's tap() can stall on long lists)."""
+    locator.scroll_into_view_if_needed()
+    box = locator.bounding_box()
+    page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+
+
 def open_wide(page) -> None:
     """Load the page with every filter off, so the checks below have data to work on."""
     page.goto(URL)
@@ -153,13 +160,14 @@ with sync_playwright() as p:
     phone.wait_for_selector("#count:not(:empty)")
     phone.screenshot(path=str(OUT / "phone-list.png"))
     open_wide(phone)
-    phone.locator(".card .pin:not([disabled])").first.tap()
+    finger_tap(phone, phone.locator(".card .pin:not([disabled])").first)
     phone.wait_for_timeout(800)
     check("phone: pin switches to the map, popup open",
           phone.locator("#map").is_visible() and phone.locator(".leaflet-popup").count() == 1)
     phone.screenshot(path=str(OUT / "phone-map.png"))
-    phone.locator('.tabs button[data-view="list"]').tap()
-    phone.locator(".card").first.tap()
+    finger_tap(phone, phone.locator('.tabs button[data-view="list"]'))
+    phone.wait_for_timeout(300)
+    finger_tap(phone, phone.locator(".card .t").first)
     phone.wait_for_timeout(300)
     check("phone: card tap opens the detail", phone.locator("#detail.open").count() == 1)
     phone.screenshot(path=str(OUT / "phone-detail.png"))
