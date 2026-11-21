@@ -1,7 +1,8 @@
 """Browser check of the static site: desktop hover + phone pin button, with screenshots.
 
-Usage: python tests/check_site.py [out_dir]
-Serves ./site on a local port, drives Chromium with Playwright, prints PASS/FAIL lines.
+Usage: python tests/check_site.py [out_dir] [--url https://...]
+Serves ./site on a local port (or tests the given live URL), drives Chromium with
+Playwright, prints PASS/FAIL lines.
 """
 from __future__ import annotations
 
@@ -14,14 +15,24 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent / "site"
-OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent / "screenshots"
+args = sys.argv[1:]
+live_url = None
+if "--url" in args:
+    i = args.index("--url")
+    live_url = args[i + 1]
+    del args[i:i + 2]
+OUT = Path(args[0]) if args else Path(__file__).resolve().parent / "screenshots"
 OUT.mkdir(parents=True, exist_ok=True)
 
-handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
-handler.log_message = lambda *a, **k: None
-server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-threading.Thread(target=server.serve_forever, daemon=True).start()
-URL = f"http://127.0.0.1:{server.server_port}/"
+server = None
+if live_url:
+    URL = live_url
+else:
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
+    handler.log_message = lambda *a, **k: None
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    URL = f"http://127.0.0.1:{server.server_port}/"
 
 failures = 0
 
@@ -73,6 +84,7 @@ with sync_playwright() as p:
     check("no JavaScript errors", not errors, "; ".join(errors))
     browser.close()
 
-server.shutdown()
-print(f"screenshots in {OUT}")
+if server:
+    server.shutdown()
+print(f"tested {URL}; screenshots in {OUT}")
 sys.exit(1 if failures else 0)

@@ -12,8 +12,11 @@ permissions:
   pages: write
   id-token: write
 
+# Code pushes (deploy only) must not wait behind a 30-minute collection, so they get
+# their own group. A collection deploys at its end from the rebased latest main,
+# so it never brings back an older page.
 concurrency:
-  group: collect-and-deploy
+  group: ${{ github.event_name == 'push' && 'deploy-only' || 'collect' }}
   cancel-in-progress: false
 
 jobs:
