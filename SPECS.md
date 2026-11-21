@@ -4,7 +4,7 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie, pour la reche
 
 **Contraintes de Nabil** : rien ne tourne sur son PC (la collecte se fait entièrement dans le cloud) ; l'outil se consulte d'abord **sur téléphone**.
 
-Statut : **brouillon à valider** (21/11/2026).
+Statut au 21/11/2026 : lots 1 et 2 en ligne (Otodom, 629 annonces, collecte depuis GitHub validée). Prochain : lot 3.
 
 ---
 
@@ -88,6 +88,7 @@ GitHub Actions (cron 2×/jour)          GitHub Pages (statique)
 - **Le site sera public.** Avec un compte GitHub gratuit, Pages publie depuis un dépôt public, et même un dépôt privé (GitHub Pro) donne un site accessible à quiconque a l'URL. On ne publie donc que les annonces, qui sont déjà publiques. Tes statuts, notes, favoris et locaux ajoutés à la main (Square, budget…) restent dans ton navigateur et ne sont jamais envoyés. Le site sera exclu des moteurs de recherche (`noindex`, `robots.txt`).
 - **Conditions des portails.** Otodom, OLX et les autres interdisent en général la collecte automatisée dans leurs CGU. On reste sur un usage personnel à faible fréquence, sans republier les descriptions ni les photos en dur (les miniatures restent chargées depuis le site d'origine). Un portail peut néanmoins bloquer la collecte à tout moment.
 - **Coordonnées approximatives** : certaines annonces ne donnent que la rue ou le quartier. Leur marqueur est alors affiché en pointillé (« position approximative »).
+- **Une position « exacte » peut être fausse** (contrôle du 21/11). On a comparé 8 annonces « exactes » donnant un numéro de rue avec le géocodage de leur adresse (OpenStreetMap) : 6 sont à moins de 65 m (médiane 40 m), 2 sont à 1,7–1,9 km (repère mal placé par l'annonceur). À ajouter : quand l'adresse comporte un numéro et que l'écart dépasse 300 m, marquer l'annonce « position à vérifier ».
 
 ## 7. Découpage en lots
 
