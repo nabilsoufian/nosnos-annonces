@@ -95,6 +95,7 @@ def main() -> int:
                 raise RuntimeError("0 listings returned (blocked or layout changed?)")
             merge(previous, fresh, name, now)
             status.update(last_success=now, count=len(fresh), error=None)
+            status.pop("note", None)
             print(f"[{name}] {len(fresh)} listings")
         except Exception as exc:
             failures += 1
