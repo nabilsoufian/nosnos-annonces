@@ -49,6 +49,11 @@ jobs:
           git pull --rebase -X theirs origin main
           git push
 
+      # Pages caches every file for 10 min independently: stamp the assets with the commit
+      # so a phone never runs a new page with an old script (or the reverse).
+      - name: Version static assets
+        run: sed -i "s/__BUILD__/$(git rev-parse --short HEAD)/g" site/index.html
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

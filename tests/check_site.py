@@ -225,6 +225,18 @@ with sync_playwright() as p:
     phone.keyboard.press("Escape")
     check("phone: no '0' badge when no filter is active",
           not phone.locator("#filter-count").is_visible())
+    phone.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
+    star = phone.locator(".card .fav").first
+    finger_tap(phone, star)
+    phone.wait_for_timeout(300)
+    check("phone: tapping ☆ adds a favourite (without opening the detail)",
+          star.get_attribute("aria-pressed") == "true" and phone.locator("#fav-count").inner_text() == "1"
+          and phone.locator("#detail.open").count() == 0)
+    phone.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
+    if live_url:
+        versions = phone.evaluate("[...document.querySelectorAll('script[src*=\"app.js\"], link[href*=\"style.css\"]')]"
+                                  ".map(e => e.getAttribute('src') || e.getAttribute('href'))")
+        check("live: assets carry a build version", all("__BUILD__" not in v and "?v=" in v for v in versions), str(versions))
     phone.click("#open-filters")
     phone.wait_for_timeout(200)
     phone.screenshot(path=str(OUT / "phone-filters.png"))
