@@ -31,6 +31,58 @@ let ALL = [];        // active listings
 let META = {};
 let filters = loadFilters();
 
+// ---------- favourites (this device only) ----------
+// key -> { added_at, snapshot }. The snapshot keeps a favourite visible after the listing
+// disappears from the source.
+const FAV_KEY = "nosnos-annonces:favorites:v1";
+let favorites = loadFavorites();
+let favOnly = false;
+
+function loadFavorites() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FAV_KEY) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch { return {}; }
+}
+function saveFavorites() {
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favorites)); } catch { /* ignore */ }
+}
+const isFav = key => Object.prototype.hasOwnProperty.call(favorites, key);
+function toggleFavorite(key) {
+  if (isFav(key)) {
+    delete favorites[key];
+  } else {
+    const l = findListing(key);
+    if (!l) return;
+    const { price_history, ...snapshot } = l;
+    favorites[key] = { added_at: new Date().toISOString(), snapshot };
+  }
+  saveFavorites();
+  // Update in place (keeps the scroll position); in favourites mode the list itself changes.
+  document.querySelectorAll(`[data-fav="${CSS.escape(key)}"]`).forEach(b => setFavButton(b, isFav(key)));
+  renderFavCount();
+  if (favOnly) { render(); return; }
+  const l = findListing(key);
+  const m = markers.get(key);
+  if (m && l) m.setStyle(markerStyle(l)).setPopupContent(popupHtml(l));
+}
+function setFavButton(btn, on) {
+  btn.setAttribute("aria-pressed", String(on));
+  btn.textContent = btn.classList.contains("fav") ? (on ? "★" : "☆") : (on ? "★ Retirer des favoris" : "☆ Ajouter aux favoris");
+  if (btn.classList.contains("fav")) btn.setAttribute("aria-label", on ? "Retirer des favoris" : "Ajouter aux favoris");
+}
+function renderFavCount() {
+  const n = Object.keys(favorites).length;
+  $("#fav-count").hidden = !n;
+  $("#fav-count").textContent = n;
+  $("#fav-toggle").setAttribute("aria-pressed", String(favOnly));
+}
+/** Active listing, or the saved snapshot of a favourite that is no longer online. */
+function findListing(key) {
+  return ALL.find(x => keyOf(x) === key)
+    || (isFav(key) ? { ...favorites[key].snapshot, gone_since: favorites[key].snapshot.gone_since || "retirée" } : null);
+}
+
 function loadFilters() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null");
@@ -95,7 +147,9 @@ const SORTERS = {
   "area-desc": (a, b) => (b.area_m2 ?? -Infinity) - (a.area_m2 ?? -Infinity),
 };
 function visible() {
-  return ALL.filter(l => passes(l, filters)).sort(SORTERS[filters.sort] || SORTERS.recent);
+  const sorter = SORTERS[filters.sort] || SORTERS.recent;
+  if (favOnly) return Object.keys(favorites).map(findListing).filter(Boolean).sort(sorter);
+  return ALL.filter(l => passes(l, filters)).sort(sorter);
 }
 function activeFilterCount() {
   let n = 0;
@@ -112,6 +166,11 @@ let map, layer;
 const markers = new Map();
 const BASE_STYLE = { radius: 7, weight: 2 };
 const HOT_STYLE = { radius: 12, weight: 3 };
+/** Colours per listing: favourites get a gold ring, new listings a gold fill. */
+function markerStyle(l) {
+  const fav = l && isFav(keyOf(l));
+  return { color: fav ? "#C4963C" : "#1A1815", weight: fav ? 4 : BASE_STYLE.weight };
+}
 
 function initMap() {
   map = L.map("map").setView([52.2297, 21.0122], 12);
@@ -121,18 +180,18 @@ function initMap() {
   layer = L.layerGroup().addTo(map);
 }
 function popupHtml(l) {
-  return `<a href="#" data-open="${esc(keyOf(l))}"><b>${esc(l.title)}</b></a><br>
+  return `${isFav(keyOf(l)) ? "★ " : ""}<a href="#" data-open="${esc(keyOf(l))}"><b>${esc(l.title)}</b></a><br>
     ${esc(priceLine(l))}${ppmLine(l) ? " · " + esc(ppmLine(l)) : ""}<br>${esc(subLine(l))}
     ${l.location_precise ? "" : "<br><i>Position approximative</i>"}`;
 }
 function highlight(key, { pan = false, popup = false } = {}) {
   document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
-  for (const m of markers.values()) m.setStyle(BASE_STYLE).setRadius(BASE_STYLE.radius);
+  for (const [k, m] of markers) m.setStyle(markerStyle(findListing(k))).setRadius(BASE_STYLE.radius);
   if (!key) { map.closePopup(); return; }
   document.querySelector(`.card[data-key="${CSS.escape(key)}"]`)?.classList.add("active");
   const m = markers.get(key);
   if (!m) { map.closePopup(); return; }
-  m.setStyle(HOT_STYLE).setRadius(HOT_STYLE.radius).bringToFront();
+  m.setStyle({ ...markerStyle(findListing(key)), weight: HOT_STYLE.weight }).setRadius(HOT_STYLE.radius).bringToFront();
   if (pan && !map.getBounds().pad(-0.1).contains(m.getLatLng())) map.panTo(m.getLatLng());
   if (popup) m.openPopup();
 }
@@ -157,11 +216,19 @@ function render({ fit = false } = {}) {
     ? `Voir ${items.length} annonce${items.length > 1 ? "s" : ""}` : "Aucune annonce";
   $("#sort").value = filters.sort;
 
-  $("#list").innerHTML = items.length ? items.map(l => `
-    <div class="card" data-key="${esc(keyOf(l))}" role="button" tabindex="0">
+  if (favOnly) {
+    $("#count").textContent = `${items.length} favori${items.length > 1 ? "s" : ""} · filtres ignorés`;
+  }
+  renderFavCount();
+
+  $("#list").innerHTML = items.length ? items.map(l => {
+    const key = keyOf(l);
+    const fav = isFav(key);
+    return `
+    <div class="card${l.gone_since ? " gone" : ""}" data-key="${esc(key)}" role="button" tabindex="0">
       ${l.thumbnail ? `<img loading="lazy" referrerpolicy="no-referrer" src="${esc(l.thumbnail)}" alt="">` : `<div class="noimg"></div>`}
       <div>
-        <div class="t">${isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</div>
+        <div class="t">${l.gone_since ? '<span class="badge gone">Retirée</span>' : isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</div>
         <div class="p">${esc(priceLine(l))}</div>
         <div class="s">${esc([ppmLine(l), subLine(l)].filter(Boolean).join(" · "))}</div>
         <div class="s">${esc(l.source)} · ${esc(ago(l.created_at || l.first_seen))}</div>
@@ -169,9 +236,14 @@ function render({ fit = false } = {}) {
       <button class="pin" type="button" ${l.lat == null ? "disabled" : ""}
         title="${l.lat == null ? "Position inconnue" : "Voir sur la carte"}"
         aria-label="${l.lat == null ? "Position inconnue" : "Voir sur la carte"}">📍</button>
-    </div>`).join("")
-    : `<div class="empty">Aucune annonce ne correspond aux filtres.<br><br>
-       <button class="btn" type="button" id="empty-reset">Réinitialiser les filtres</button></div>`;
+      <button class="fav" type="button" data-fav="${esc(key)}" aria-pressed="${fav}"
+        aria-label="${fav ? "Retirer des favoris" : "Ajouter aux favoris"}">${fav ? "★" : "☆"}</button>
+    </div>`;
+  }).join("")
+    : favOnly
+      ? `<div class="empty">Aucun favori pour l'instant.<br>Touche ☆ sur une annonce pour l'ajouter.</div>`
+      : `<div class="empty">Aucune annonce ne correspond aux filtres.<br><br>
+         <button class="btn" type="button" id="empty-reset">Réinitialiser les filtres</button></div>`;
 
   layer.clearLayers();
   markers.clear();
@@ -179,8 +251,8 @@ function render({ fit = false } = {}) {
     if (l.lat == null) continue;
     const key = keyOf(l);
     const m = L.circleMarker([l.lat, l.lng], {
-      ...BASE_STYLE, color: "#1A1815", fillColor: isNew(l) ? "#C4963C" : "#7A8C7E",
-      fillOpacity: .9, dashArray: l.location_precise ? null : "3 3",
+      ...BASE_STYLE, ...markerStyle(l), fillColor: isNew(l) ? "#C4963C" : "#7A8C7E",
+      fillOpacity: l.gone_since ? .4 : .9, dashArray: l.location_precise ? null : "3 3",
     }).bindPopup(popupHtml(l)).addTo(layer);
     m.on("click", () => {
       highlight(key);
@@ -207,7 +279,7 @@ function renderSummary() {
 
 // ---------- listing detail ----------
 function openDetail(key) {
-  const l = ALL.find(x => keyOf(x) === key);
+  const l = findListing(key);
   if (!l) return;
   const hero = l.thumbnail ? l.thumbnail.replace(/;s=\d+x\d+$/, ";s=1024x768") : null;
   const history = (l.price_history || []);
@@ -226,8 +298,10 @@ function openDetail(key) {
   ];
   $("#detail-body").innerHTML = `
     ${hero ? `<img class="hero" referrerpolicy="no-referrer" src="${esc(hero)}" alt="">` : ""}
-    <h2>${isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</h2>
+    <h2>${l.gone_since ? '<span class="badge gone">Retirée</span>' : isNew(l) ? '<span class="badge">Nouveau</span>' : ""}${esc(l.title)}</h2>
     <div class="price">${esc(priceLine(l))}</div>
+    ${l.gone_since ? `<p class="hint">Cette annonce n'est plus en ligne. Elle reste dans tes favoris avec ses dernières informations connues.</p>` : ""}
+    <button class="btn" type="button" data-fav="${esc(key)}" aria-pressed="${isFav(key)}" style="width:100%;margin-top:10px">${isFav(key) ? "★ Retirer des favoris" : "☆ Ajouter aux favoris"}</button>
     <dl class="facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     ${history.length > 1 ? `<div class="label"><b>Historique du prix</b></div>
       <ul class="history">${history.map(([d, p]) => `<li>${esc(dateFr(d))} : ${esc(fmt(p))} ${esc(l.rent_currency || "")}</li>`).join("")}</ul>` : ""}
@@ -307,6 +381,8 @@ function wireEvents() {
   // stays open and can be clicked.
   list.addEventListener("click", e => {
     if (e.target.closest("#empty-reset")) return resetFilters();
+    const favBtn = e.target.closest("[data-fav]");
+    if (favBtn) return toggleFavorite(favBtn.dataset.fav);
     const card = e.target.closest(".card");
     if (!card) return;
     const pin = e.target.closest(".pin");
@@ -317,6 +393,7 @@ function wireEvents() {
     openDetail(card.dataset.key);
   });
   list.addEventListener("keydown", e => {
+    if (e.target.closest("button")) return;   // buttons inside a card handle their own keys
     const card = e.target.closest(".card");
     if (card && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openDetail(card.dataset.key); }
   });
@@ -330,8 +407,15 @@ function wireEvents() {
     });
   });
   $("#detail").addEventListener("click", e => {
+    const favBtn = e.target.closest("[data-fav]");
+    if (favBtn) return toggleFavorite(favBtn.dataset.fav);
     const b = e.target.closest("[data-map]");
     if (b && !b.disabled) showOnMap(b.dataset.map);
+  });
+
+  $("#fav-toggle").addEventListener("click", () => {
+    favOnly = !favOnly;
+    render({ fit: true });
   });
 
   document.querySelectorAll(".sheet").forEach(s => s.addEventListener("click", e => {

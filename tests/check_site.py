@@ -153,11 +153,62 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     check("popup: title link opens the detail", page.locator("#detail.open").count() == 1)
 
+    # ---- favourites ----
+    page.keyboard.press("Escape")
+    open_wide(page)
+    page.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
+    page.reload()
+    page.wait_for_selector(".card")
+    first, second = page.locator(".card").nth(0), page.locator(".card").nth(1)
+    k1, k2 = first.get_attribute("data-key"), second.get_attribute("data-key")
+    first.locator(".fav").click()
+    second.locator(".fav").click()
+    check("favourites: star turns on", first.locator(".fav").get_attribute("aria-pressed") == "true"
+          and first.locator(".fav").inner_text() == "★")
+    check("favourites: counter shows 2", page.locator("#fav-count").inner_text() == "2")
+    check("favourites: clicking the star does not open the detail", page.locator("#detail.open").count() == 0)
+    page.click("#fav-toggle")
+    keys = page.eval_on_selector_all(".card", "els => els.map(e => e.dataset.key)")
+    check("favourites: mode shows only favourites", sorted(keys) == sorted([k1, k2]), f"{len(keys)} cards")
+    page.screenshot(path=str(OUT / "desktop-favorites.png"))
+    page.reload()
+    page.wait_for_selector("#count:not(:empty)")
+    check("favourites: remembered after reload", page.locator("#fav-count").inner_text() == "2")
+    # A favourite that disappeared from the source stays visible, marked "Retirée".
+    page.evaluate("""() => {
+      const favs = JSON.parse(localStorage.getItem('nosnos-annonces:favorites:v1'));
+      favs['otodom:999999999'] = { added_at: new Date().toISOString(),
+        snapshot: { source: 'otodom', source_id: '999999999', url: 'https://www.otodom.pl/', title: 'Ancienne annonce test',
+          area_m2: 150, rent: 15000, rent_currency: 'PLN', floor: 'GROUND', district: 'Wola', lat: 52.23, lng: 20.98,
+          location_precise: true, created_at: '2026-10-01T10:00:00+00:00', first_seen: '2026-11-01T10:00:00+00:00' } };
+      localStorage.setItem('nosnos-annonces:favorites:v1', JSON.stringify(favs));
+    }""")
+    page.reload()
+    page.wait_for_selector("#count:not(:empty)")
+    page.click("#fav-toggle")
+    gone = page.locator('.card[data-key="otodom:999999999"]')
+    check("favourites: vanished listing still shown as 'Retirée'",
+          gone.count() == 1 and "Retirée" in gone.inner_text())
+    gone.locator(".fav").click()
+    check("favourites: un-starring in favourites mode removes it from the list",
+          page.locator('.card[data-key="otodom:999999999"]').count() == 0)
+    first_fav = page.locator(".card").first
+    first_fav.click()
+    detail_btn = page.locator("#detail [data-fav]")
+    check("favourites: detail shows 'Retirer des favoris'", "Retirer" in detail_btn.inner_text())
+    detail_btn.click()
+    check("favourites: un-starring from the detail updates it", "Ajouter" in detail_btn.inner_text())
+    page.keyboard.press("Escape")
+    page.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
+
     # ---- phone ----
     phone = browser.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     phone.on("pageerror", lambda e: errors.append(str(e)))
     phone.goto(URL)
     phone.wait_for_selector("#count:not(:empty)")
+    width = phone.evaluate("({inner: innerWidth, doc: document.documentElement.scrollWidth})")
+    check("phone: page fits the 390 px screen (no horizontal overflow)",
+          width["inner"] == 390 and width["doc"] <= 390, str(width))
     phone.screenshot(path=str(OUT / "phone-list.png"))
     open_wide(phone)
     finger_tap(phone, phone.locator(".card .pin:not([disabled])").first)
