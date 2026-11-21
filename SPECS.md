@@ -4,7 +4,7 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie, pour la reche
 
 **Contraintes de Nabil** : rien ne tourne sur son PC (la collecte se fait entièrement dans le cloud) ; l'outil se consulte d'abord **sur téléphone**.
 
-Statut au 21/11/2026 : lots 1 et 2 en ligne (Otodom, 629 annonces, collecte depuis GitHub validée). Prochain : lot 3.
+Statut au 21/11/2026 : lots 1 et 2 en ligne (Otodom, 629 annonces, collecte depuis GitHub validée), plus les favoris (avancés depuis le lot 4, à la demande de Nabil). Prochain : lot 3.
 
 ---
 
