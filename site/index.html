@@ -82,6 +82,7 @@ const fmt = (n, d = 0) => n == null ? null : n.toLocaleString("fr-FR", { maximum
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const ago = iso => {
   const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
+  if (Number.isNaN(d)) return "date inconnue";
   return d <= 0 ? "aujourd'hui" : d === 1 ? "hier" : `il y a ${d} j`;
 };
 function price(l) {
@@ -94,7 +95,8 @@ function sub(l) {
   return [l.area_m2 && `${fmt(l.area_m2, 1)} m²`, FLOORS[l.floor] || null,
     [l.district, l.neighbourhood].filter(Boolean).join(" · ")].filter(Boolean).join(" · ");
 }
-function isNew(l) { return Date.now() - new Date(l.first_seen) < 3 * 86400000; }
+// "New" = published on the source less than 7 days ago (per-visit "new since last time" comes in lot 3).
+function isNew(l) { return Date.now() - new Date(l.created_at || l.first_seen) < 7 * 86400000; }
 
 let map, layer;
 const markers = new Map();   // listing key -> Leaflet marker

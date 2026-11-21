@@ -16,6 +16,10 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie (recherche du 
 - `site/` : le site statique publié sur GitHub Pages (`index.html`, `data/listings.json`, `data/meta.json`).
 - `.github/workflows/collect-and-deploy.yml` : la collecte tourne à 05:00 et 15:00 UTC ou à la demande, commit les données, puis déploie Pages. Un push sur main redéploie seulement le site, sans collecter.
 
+## Vérification avant chaque push
+- `node --check` sur le JavaScript de la page (extraire le `<script>` de `site/index.html`).
+- `python tests/check_site.py <dossier_captures>` : sert `site/` en local, teste dans Chromium (Playwright) le survol sur ordinateur et le bouton 📍 sur téléphone, et fait des captures. Regarder les captures avant d'annoncer quoi que ce soit.
+
 ## Commandes
 - Lancer une collecte sur GitHub : `gh workflow run collect-and-deploy.yml`, puis suivre avec `gh run watch`.
 - Dépôt : github.com/nabilsoufian/nosnos-annonces. Site : https://nabilsoufian.github.io/nosnos-annonces/

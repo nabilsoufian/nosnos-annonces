@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime
 
 from ..common import Listing, fetch
 
@@ -74,8 +75,19 @@ def _to_listing(item: dict) -> Listing:
         agency=agency.get("name"),
         private_owner=item.get("isPrivateOwner"),
         thumbnail=_thumbnail(images),
-        created_at=item.get("createdAtFirst") or item.get("dateCreated"),
+        created_at=_valid_date(item.get("createdAtFirst")) or _valid_date(item.get("dateCreated")),
     )
+
+
+def _valid_date(value: str | None) -> str | None:
+    """Return an ISO date, or None for missing/placeholder values like '1999-02-29 00:00:01'."""
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace(" ", "T"))
+    except ValueError:
+        return None
+    return parsed.isoformat() if parsed.year >= 2005 else None
 
 
 def _add_coordinates(listing: Listing) -> None:
@@ -99,8 +111,14 @@ def scrape(area_min: int, area_max: int, known: dict[str, dict]) -> list[Listing
         print(f"  otodom: page {page}/{total_pages}, {len(items)} items")
         page += 1
 
-    # Otodom repeats promoted ads across pages: keep one per id.
-    unique = {l.source_id: l for l in listings}
+    # Otodom repeats promoted ads across pages, and sometimes lists the same ad (same URL)
+    # under a second id with a placeholder date: keep one per URL, preferring a real date.
+    by_url: dict[str, Listing] = {}
+    for l in listings:
+        cur = by_url.get(l.url)
+        if cur is None or (cur.created_at is None and l.created_at is not None):
+            by_url[l.url] = l
+    unique = {l.source_id: l for l in by_url.values()}
 
     to_locate = []
     for listing in unique.values():
