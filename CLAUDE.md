@@ -20,6 +20,8 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie (recherche du 
 - `node --check` sur le JavaScript de la page (extraire le `<script>` de `site/index.html`).
 - `python tests/check_site.py <dossier_captures>` : sert `site/` en local, teste dans Chromium (Playwright) le survol sur ordinateur et le bouton 📍 sur téléphone, et fait des captures. Regarder les captures avant d'annoncer quoi que ce soit.
 
+- Après chaque déploiement, relancer le même test sur le site en ligne (`--url https://nabilsoufian.github.io/nosnos-annonces/?v=<aléatoire>`) avant de dire à Nabil que c'est en ligne. Un « c'est fait » n'est valable qu'une fois le test en ligne passé.
+
 ## Commandes
 - Lancer une collecte sur GitHub : `gh workflow run collect-and-deploy.yml`, puis suivre avec `gh run watch`.
 - Dépôt : github.com/nabilsoufian/nosnos-annonces. Site : https://nabilsoufian.github.io/nosnos-annonces/

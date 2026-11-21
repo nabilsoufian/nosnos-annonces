@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import traceback
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -63,6 +64,18 @@ def merge(previous: dict[str, dict], fresh: list[dict], source: str, now: str) -
             del previous[key]
 
 
+def eur_pln_rate() -> dict | None:
+    """Today's NBP mid rate for EUR (table A). The API has no CORS, so the site can't call it."""
+    url = "https://api.nbp.pl/api/exchangerates/rates/a/eur/?format=json"
+    try:
+        with urllib.request.urlopen(url, timeout=20) as resp:
+            rate = json.load(resp)["rates"][0]
+        return {"rate": rate["mid"], "date": rate["effectiveDate"], "source": "NBP, tabela A"}
+    except Exception as exc:
+        print(f"NBP rate unavailable: {exc}")
+        return None
+
+
 def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
     previous = {_key(r): r for r in _load(LISTINGS, [])}
@@ -90,6 +103,7 @@ def main() -> int:
 
     meta["updated_at"] = now
     meta["area_range"] = [AREA_MIN, AREA_MAX]
+    meta["eur_pln"] = eur_pln_rate() or meta.get("eur_pln")  # keep the last known rate on failure
     listings = sorted(previous.values(), key=lambda r: r["first_seen"], reverse=True)
     LISTINGS.write_text(json.dumps(listings, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     META.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
