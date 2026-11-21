@@ -22,6 +22,9 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie (recherche du 
 
 - Après chaque déploiement, relancer le même test sur le site en ligne (`--url https://nabilsoufian.github.io/nosnos-annonces/?v=<aléatoire>`) avant de dire à Nabil que c'est en ligne. Un « c'est fait » n'est valable qu'une fois le test en ligne passé.
 
+- GitHub Pages met chaque fichier en cache 10 min, indépendamment des autres. `index.html` charge `app.js?v=__BUILD__` et `style.css?v=__BUILD__`, et le workflow remplace `__BUILD__` par le commit. Tout nouveau fichier JS ou CSS doit suivre le même principe.
+- WebKit est installé (moteur de l'iPhone) : tester aussi un iPhone simulé pour tout ce qui touche au tactile.
+
 ## Commandes
 - Lancer une collecte sur GitHub : `gh workflow run collect-and-deploy.yml`, puis suivre avec `gh run watch`.
 - Dépôt : github.com/nabilsoufian/nosnos-annonces. Site : https://nabilsoufian.github.io/nosnos-annonces/
