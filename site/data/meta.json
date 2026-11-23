@@ -1,20 +1,20 @@
 {
   "sources": {
     "otodom": {
-      "last_attempt": "2026-11-22T20:56:21+00:00",
-      "last_success": "2026-11-22T20:56:21+00:00",
-      "count": 630,
+      "last_attempt": "2026-11-23T15:43:21+00:00",
+      "last_success": "2026-11-23T15:43:21+00:00",
+      "count": 638,
       "error": null
     }
   },
-  "updated_at": "2026-11-22T20:56:21+00:00",
+  "updated_at": "2026-11-23T15:43:21+00:00",
   "area_range": [
     120,
     220
   ],
   "eur_pln": {
-    "rate": 4.4559,
-    "date": "2026-11-20",
+    "rate": 4.4556,
+    "date": "2026-11-23",
     "source": "NBP, tabela A"
   }
 }
