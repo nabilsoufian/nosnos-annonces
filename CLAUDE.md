@@ -14,7 +14,7 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie (recherche du 
 ## Structure
 - `scraper/` : collecte (Python 3.13, bibliothèque standard uniquement). `scraper/run.py` fusionne les sources dans `site/data/`.
 - `site/` : le site statique publié sur GitHub Pages (`index.html`, `data/listings.json`, `data/meta.json`).
-- `.github/workflows/collect-and-deploy.yml` : la collecte tourne à 05:00 et 15:00 UTC ou à la demande, commit les données, puis déploie Pages. Un push sur main redéploie seulement le site, sans collecter.
+- `.github/workflows/collect-and-deploy.yml` : la collecte tourne toutes les 3 h (à h+17, cron GitHub peu fiable à l'heure pile) ou à la demande (lien « Actualiser maintenant » du site → « Run workflow » sur GitHub), commit les données, puis déploie Pages. Un push sur main redéploie seulement le site, sans collecter.
 
 ## Vérification avant chaque push
 - `node --check` sur le JavaScript de la page (extraire le `<script>` de `site/index.html`).

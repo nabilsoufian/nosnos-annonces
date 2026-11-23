@@ -81,6 +81,10 @@ with sync_playwright() as p:
     shown, total = shown_count(page)
     check("defaults: brief filters reduce the list", 0 <= shown < total, f"{shown} of {total}")
     check("defaults: filter badge shows active filters", page.locator("#filter-count").is_visible())
+    refresh = page.locator("#refresh-link")
+    check("header: refresh link opens the collection workflow on GitHub",
+          refresh.is_visible() and refresh.get_attribute("href").endswith("/actions/workflows/collect-and-deploy.yml")
+          and refresh.get_attribute("target") == "_blank")
     floors = page.locator(".card .s").all_inner_texts()
     check("defaults: only ground floor shown", all("RDC" in t for t in floors[::2]) if floors else True)
     page.wait_for_load_state("networkidle")

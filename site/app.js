@@ -266,6 +266,9 @@ function render({ fit = false } = {}) {
   }
 }
 
+// GitHub page of the collection workflow: "Run workflow" there starts a collection.
+const REFRESH_URL = "https://github.com/nabilsoufian/nosnos-annonces/actions/workflows/collect-and-deploy.yml";
+
 function renderSummary() {
   const when = META.updated_at
     ? new Date(META.updated_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })
@@ -274,6 +277,7 @@ function renderSummary() {
   $("#summary").innerHTML = when
     ? `Mis à jour ${esc(when)} · ${Object.keys(META.sources || {}).map(esc).join(", ")}`
       + (failing.length ? ` · <span class="err">⚠ échec : ${failing.map(esc).join(", ")}</span>` : "")
+      + ` · <a id="refresh-link" href="${REFRESH_URL}" target="_blank" rel="noopener">Actualiser maintenant</a>`
     : "Pas encore de collecte.";
 }
 

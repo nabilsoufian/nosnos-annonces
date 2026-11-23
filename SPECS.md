@@ -72,7 +72,7 @@ Mokotów est inclus parce que la passation ChatGPT le cite, alors que celle de c
 ## 5. Architecture
 
 ```
-GitHub Actions (cron 2×/jour)          GitHub Pages (statique)
+GitHub Actions (cron toutes les 3 h)          GitHub Pages (statique)
   scraper Python  ──► data/*.json ──►  index.html + JS + Leaflet
   (1 module/source)    (commit auto)    filtres, liste, carte
                                          suivi = localStorage du navigateur

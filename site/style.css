@@ -16,6 +16,7 @@ h1 { margin: 0; font-size: 18px; letter-spacing: .02em; }
 h1 span { color: var(--accent); }
 .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .meta .err { color: var(--warn); }
+.meta a { color: inherit; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 
 .toolbar { display: flex; gap: 8px; padding: 0 16px 10px; align-items: center; }
 .btn { padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);

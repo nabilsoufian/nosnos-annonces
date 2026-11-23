@@ -2,7 +2,9 @@ name: Collect listings and deploy
 
 on:
   schedule:
-    - cron: "0 5,15 * * *"   # 06:00 / 16:00 Warsaw time (winter)
+    # Every 3 hours, off the hour: GitHub delays or drops runs scheduled at :00,
+    # so a frequent, off-peak schedule keeps the data fresh even when some are skipped.
+    - cron: "17 */3 * * *"
   workflow_dispatch:
   push:
     branches: [main]
