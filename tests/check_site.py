@@ -205,6 +205,49 @@ with sync_playwright() as p:
     page.keyboard.press("Escape")
     page.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
 
+    # ---- hidden listings ("ne m'intéresse pas") ----
+    page.evaluate("localStorage.removeItem('nosnos-annonces:hidden:v1')")
+    page.reload()
+    page.wait_for_selector(".card")
+    before, _ = shown_count(page)
+    first = page.locator(".card").first
+    k1 = first.get_attribute("data-key")
+    first.locator(".hide").click()
+    page.wait_for_timeout(200)
+    after, _ = shown_count(page)
+    check("hide: ✕ removes the listing from the list", after == before - 1
+          and page.locator(f'.card[data-key="{k1}"]').count() == 0, f"{before} -> {after}")
+    check("hide: clicking ✕ does not open the detail", page.locator("#detail.open").count() == 0)
+    check("hide: toast with 'Annuler' appears", page.locator("#toast").is_visible()
+          and page.locator("#toast-undo").is_visible())
+    check("hide: count line shows '1 masquée'", "1 masquée" in page.locator("#count").inner_text())
+    page.screenshot(path=str(OUT / "desktop-hidden-toast.png"))
+    page.click("#toast-undo")
+    page.wait_for_timeout(200)
+    check("hide: 'Annuler' brings it back", shown_count(page)[0] == before
+          and page.locator(f'.card[data-key="{k1}"]').count() == 1)
+    page.locator(".card").first.locator(".hide").click()
+    page.reload()
+    page.wait_for_selector(".card")
+    check("hide: remembered after reload", shown_count(page)[0] == before - 1
+          and page.locator(f'.card[data-key="{k1}"]').count() == 0)
+    page.click("#hidden-toggle")
+    page.wait_for_timeout(200)
+    keys = page.locator(".card").evaluate_all("cs => cs.map(c => c.dataset.key)")
+    check("hide: 'masquées' view lists the hidden listing", keys == [k1], str(keys))
+    page.locator(".card .hide").first.click()
+    page.wait_for_timeout(200)
+    check("hide: ↺ restores it", page.locator(".card").count() == 0 and "{}" == page.evaluate(
+        "localStorage.getItem('nosnos-annonces:hidden:v1')"))
+    page.click("#hidden-toggle")
+    page.wait_for_timeout(200)
+    page.locator(".card .t").first.click()
+    page.locator("#detail [data-hide]").click()
+    page.wait_for_timeout(200)
+    check("hide: button in the detail hides and closes it", page.locator("#detail.open").count() == 0
+          and shown_count(page)[0] == before - 1)
+    page.evaluate("localStorage.removeItem('nosnos-annonces:hidden:v1')")
+
     # ---- phone ----
     phone = browser.new_page(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
     phone.on("pageerror", lambda e: errors.append(str(e)))
@@ -237,6 +280,16 @@ with sync_playwright() as p:
           star.get_attribute("aria-pressed") == "true" and phone.locator("#fav-count").inner_text() == "1"
           and phone.locator("#detail.open").count() == 0)
     phone.evaluate("localStorage.removeItem('nosnos-annonces:favorites:v1')")
+    phone.evaluate("localStorage.removeItem('nosnos-annonces:hidden:v1')")
+    phone.reload()
+    phone.wait_for_selector(".card")
+    n_before = shown_count(phone)[0]
+    finger_tap(phone, phone.locator(".card .hide").first)
+    phone.wait_for_timeout(300)
+    check("phone: tapping ✕ hides the listing (without opening the detail)",
+          shown_count(phone)[0] == n_before - 1 and phone.locator("#detail.open").count() == 0)
+    phone.screenshot(path=str(OUT / "phone-hidden.png"))
+    phone.evaluate("localStorage.removeItem('nosnos-annonces:hidden:v1')")
     if live_url:
         versions = phone.evaluate("[...document.querySelectorAll('script[src*=\"app.js\"], link[href*=\"style.css\"]')]"
                                   ".map(e => e.getAttribute('src') || e.getAttribute('href'))")

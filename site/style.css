@@ -57,7 +57,17 @@ body.show-map #list { display: none; }
 .fav { position: absolute; top: 50px; right: 8px; width: 36px; height: 36px; border-radius: 50%;
   border: 1px solid var(--line); background: var(--bg); font-size: 19px; line-height: 1; cursor: pointer; color: var(--muted); }
 .fav[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.card { min-height: 96px; }
+.hide { position: absolute; top: 92px; right: 8px; width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg); font-size: 15px; line-height: 1; cursor: pointer; color: var(--muted); }
+.card { min-height: 136px; }
+.linklike { border: 0; padding: 0; background: none; color: inherit; font-size: inherit; text-decoration: underline;
+  text-underline-offset: 2px; cursor: pointer; }
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 2000; display: flex; align-items: center; gap: 14px; max-width: calc(100% - 32px); padding: 10px 14px;
+  border-radius: 12px; background: var(--text); color: var(--bg); box-shadow: var(--shadow); font-size: 14px; }
+#toast span { white-space: nowrap; }
+#toast[hidden] { display: none; }
+#toast button { border: 0; background: none; color: var(--accent); font-weight: 700; padding: 4px 2px; cursor: pointer; }
 .card.gone { opacity: .7; }
 .badge.gone { background: var(--warn); }
 #fav-toggle[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

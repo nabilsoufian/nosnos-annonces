@@ -38,6 +38,55 @@ const FAV_KEY = "nosnos-annonces:favorites:v1";
 let favorites = loadFavorites();
 let favOnly = false;
 
+// ---------- hidden listings ("ne m'intéresse pas", this device only) ----------
+// key -> { hidden_at, title }. Hidden listings leave the list and the map; the
+// "N masquées" link in the count line shows them again so they can be restored.
+const HIDDEN_KEY = "nosnos-annonces:hidden:v1";
+let hidden = loadStore(HIDDEN_KEY);
+let hiddenOnly = false;
+let toastTimer = null;
+
+const isHidden = key => Object.prototype.hasOwnProperty.call(hidden, key);
+function saveHidden() {
+  try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hidden)); } catch { /* ignore */ }
+}
+function toggleHidden(key, { undoable = true } = {}) {
+  const wasHidden = isHidden(key);
+  if (wasHidden) {
+    delete hidden[key];
+  } else {
+    const l = findListing(key);
+    hidden[key] = { hidden_at: new Date().toISOString(), title: l?.title || "" };
+    if (isFav(key)) { delete favorites[key]; saveFavorites(); }   // not interested = not a favourite
+  }
+  saveHidden();
+  if ($("#detail").classList.contains("open")) closeSheets();
+  keepScroll(() => render());
+  if (undoable) showToast(wasHidden ? "Annonce réaffichée" : "Annonce masquée", () => toggleHidden(key, { undoable: false }));
+}
+function hiddenCount() { return ALL.filter(l => isHidden(keyOf(l))).length; }
+/** Re-render without jumping: the list scrolls in its own box on desktop, the page scrolls on phone. */
+function keepScroll(fn) {
+  const list = $("#list"), top = list.scrollTop, y = window.scrollY;
+  fn();
+  list.scrollTop = top;
+  window.scrollTo(0, y);
+}
+function showToast(text, undo) {
+  const t = $("#toast");
+  t.innerHTML = `<span>${esc(text)}</span>${undo ? '<button type="button" id="toast-undo">Annuler</button>' : ""}`;
+  t.hidden = false;
+  if (undo) $("#toast-undo").onclick = () => { t.hidden = true; undo(); };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 6000);
+}
+
+function loadStore(key) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch { return {}; }
+}
 function loadFavorites() {
   try {
     const saved = JSON.parse(localStorage.getItem(FAV_KEY) || "{}");
@@ -56,6 +105,7 @@ function toggleFavorite(key) {
     if (!l) return;
     const { price_history, ...snapshot } = l;
     favorites[key] = { added_at: new Date().toISOString(), snapshot };
+    if (isHidden(key)) { delete hidden[key]; saveHidden(); }   // a favourite is never hidden
   }
   saveFavorites();
   // Update in place (keeps the scroll position); in favourites mode the list itself changes.
@@ -149,7 +199,8 @@ const SORTERS = {
 function visible() {
   const sorter = SORTERS[filters.sort] || SORTERS.recent;
   if (favOnly) return Object.keys(favorites).map(findListing).filter(Boolean).sort(sorter);
-  return ALL.filter(l => passes(l, filters)).sort(sorter);
+  if (hiddenOnly) return ALL.filter(l => isHidden(keyOf(l))).sort(sorter);
+  return ALL.filter(l => !isHidden(keyOf(l)) && passes(l, filters)).sort(sorter);
 }
 function activeFilterCount() {
   let n = 0;
@@ -216,8 +267,14 @@ function render({ fit = false } = {}) {
     ? `Voir ${items.length} annonce${items.length > 1 ? "s" : ""}` : "Aucune annonce";
   $("#sort").value = filters.sort;
 
+  const nHidden = hiddenCount();
   if (favOnly) {
     $("#count").textContent = `${items.length} favori${items.length > 1 ? "s" : ""} · filtres ignorés`;
+  } else if (hiddenOnly) {
+    $("#count").innerHTML = `${items.length} annonce${items.length > 1 ? "s" : ""} masquée${items.length > 1 ? "s" : ""} · filtres ignorés · `
+      + `<button type="button" class="linklike" id="hidden-toggle">← Retour aux annonces</button>`;
+  } else if (nHidden) {
+    $("#count").innerHTML += ` · <button type="button" class="linklike" id="hidden-toggle">${nHidden} masquée${nHidden > 1 ? "s" : ""}</button>`;
   }
   renderFavCount();
 
@@ -238,10 +295,15 @@ function render({ fit = false } = {}) {
         aria-label="${l.lat == null ? "Position inconnue" : "Voir sur la carte"}">📍</button>
       <button class="fav" type="button" data-fav="${esc(key)}" aria-pressed="${fav}"
         aria-label="${fav ? "Retirer des favoris" : "Ajouter aux favoris"}">${fav ? "★" : "☆"}</button>
+      ${l.gone_since ? "" : isHidden(key)
+        ? `<button class="hide" type="button" data-hide="${esc(key)}" title="Réafficher" aria-label="Réafficher cette annonce">↺</button>`
+        : `<button class="hide" type="button" data-hide="${esc(key)}" title="Ne m'intéresse pas" aria-label="Masquer cette annonce (ne m'intéresse pas)">✕</button>`}
     </div>`;
   }).join("")
     : favOnly
       ? `<div class="empty">Aucun favori pour l'instant.<br>Touche ☆ sur une annonce pour l'ajouter.</div>`
+      : hiddenOnly
+      ? `<div class="empty">Aucune annonce masquée.</div>`
       : `<div class="empty">Aucune annonce ne correspond aux filtres.<br><br>
          <button class="btn" type="button" id="empty-reset">Réinitialiser les filtres</button></div>`;
 
@@ -306,6 +368,7 @@ function openDetail(key) {
     <div class="price">${esc(priceLine(l))}</div>
     ${l.gone_since ? `<p class="hint">Cette annonce n'est plus en ligne. Elle reste dans tes favoris avec ses dernières informations connues.</p>` : ""}
     <button class="btn" type="button" data-fav="${esc(key)}" aria-pressed="${isFav(key)}" style="width:100%;margin-top:10px">${isFav(key) ? "★ Retirer des favoris" : "☆ Ajouter aux favoris"}</button>
+    ${l.gone_since ? "" : `<button class="btn" type="button" data-hide="${esc(key)}" style="width:100%;margin-top:8px">${isHidden(key) ? "↺ Réafficher cette annonce" : "✕ Ne m'intéresse pas (masquer)"}</button>`}
     <dl class="facts">${facts.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     ${history.length > 1 ? `<div class="label"><b>Historique du prix</b></div>
       <ul class="history">${history.map(([d, p]) => `<li>${esc(dateFr(d))} : ${esc(fmt(p))} ${esc(l.rent_currency || "")}</li>`).join("")}</ul>` : ""}
@@ -387,6 +450,8 @@ function wireEvents() {
     if (e.target.closest("#empty-reset")) return resetFilters();
     const favBtn = e.target.closest("[data-fav]");
     if (favBtn) return toggleFavorite(favBtn.dataset.fav);
+    const hideBtn = e.target.closest("[data-hide]");
+    if (hideBtn) return toggleHidden(hideBtn.dataset.hide);
     const card = e.target.closest(".card");
     if (!card) return;
     const pin = e.target.closest(".pin");
@@ -413,12 +478,21 @@ function wireEvents() {
   $("#detail").addEventListener("click", e => {
     const favBtn = e.target.closest("[data-fav]");
     if (favBtn) return toggleFavorite(favBtn.dataset.fav);
+    const hideBtn = e.target.closest("[data-hide]");
+    if (hideBtn) return toggleHidden(hideBtn.dataset.hide);
     const b = e.target.closest("[data-map]");
     if (b && !b.disabled) showOnMap(b.dataset.map);
   });
 
   $("#fav-toggle").addEventListener("click", () => {
     favOnly = !favOnly;
+    hiddenOnly = false;
+    render({ fit: true });
+  });
+  $("#count").addEventListener("click", e => {
+    if (!e.target.closest("#hidden-toggle")) return;
+    hiddenOnly = !hiddenOnly;
+    favOnly = false;
     render({ fit: true });
   });
 
