@@ -1,13 +1,13 @@
 {
   "sources": {
     "otodom": {
-      "last_attempt": "2026-11-23T15:43:21+00:00",
-      "last_success": "2026-11-23T15:43:21+00:00",
+      "last_attempt": "2026-11-24T05:19:06+00:00",
+      "last_success": "2026-11-24T05:19:06+00:00",
       "count": 638,
       "error": null
     }
   },
-  "updated_at": "2026-11-23T15:43:21+00:00",
+  "updated_at": "2026-11-24T05:19:06+00:00",
   "area_range": [
     120,
     220
