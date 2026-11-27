@@ -5,6 +5,7 @@ Agrégateur d'annonces de locaux commerciaux à louer à Varsovie, pour la reche
 **Contraintes de Nabil** : rien ne tourne sur son PC (la collecte se fait entièrement dans le cloud) ; l'outil se consulte d'abord **sur téléphone**.
 
 Statut au 21/11/2026 : lots 1 et 2 en ligne (Otodom, 629 annonces, collecte depuis GitHub validée), plus les favoris (avancés depuis le lot 4, à la demande de Nabil). Prochain : lot 3.
+Mise à jour du 27/11/2026 : source Gratka ajoutée (lot 5 avancé). OLX bloqué sans service payant.
 
 ---
 
@@ -14,11 +15,11 @@ Voir en un seul endroit toutes les annonces de locaux qui correspondent au brief
 
 ## 2. Sources
 
-| Source | Méthode | Faisabilité vérifiée le 21/11 |
+| Source | Méthode | Faisabilité vérifiée le 21/11 (mise à jour le 27/11) |
 |---|---|---|
 | Otodom | Page de résultats (JSON `__NEXT_DATA__`) + fiche détail pour les coordonnées GPS | ✅ 629 annonces de 120–220 m² ; coordonnées présentes sur la fiche |
-| OLX | Pages HTML de résultats (l'API JSON répond 403) | ⚠️ page accessible, format à analyser |
-| Gratka | Pages HTML | ⚠️ page accessible, format à analyser |
+| OLX | — | ❌ 27/11 : le HTML de résultats ne contient pas les annonces (chargées en JavaScript), l'API JSON répond 403, et même un Chromium sans écran (Playwright) reçoit « Request blocked » (CloudFront). Faisable seulement avec le plan B payant (§5). Beaucoup d'annonces de locaux d'OLX renvoient de toute façon vers Otodom (même groupe). |
+| Gratka | Page de résultats (JSON Nuxt `__NUXT_DATA__`, décodé par `common.nuxt_data`) + fiche détail pour la position | ✅ 27/11 : sous-catégories `handel-uslugi` + `lokale-gastronomiczne` (bureaux, immeubles de bureaux et entrepôts exclus), 275 annonces de 120–220 m². Filtre `powierzchnia-w-m2:min/max`, 35 par page, `&page=N` à partir de 2 (`page=1` répond 404). Position : rue + numéro = exacte, rue seule = approximative, sans rue = aucune (Gratka renvoie alors le centre de Varsovie). |
 | Morizon | Pages HTML | ⚠️ URL de recherche à corriger (404) |
 | Nieruchomosci-online | Pages HTML | ⚠️ page accessible, format à analyser |
 | Domiporta | Pages HTML | ⚠️ page accessible, format à analyser |
@@ -98,7 +99,7 @@ GitHub Actions (cron toutes les 3 h)          GitHub Pages (statique)
 | 2 | Interface téléphone : liste, carte, filtres, tri, fiche annonce | Comparer avec Otodom : nombre d'annonces et 5 annonces vérifiées à la main |
 | 3 | Nouveautés, historique et baisses de prix, coût mensuel complet (NBP) | Badges et coûts corrects sur des cas vérifiés |
 | 4 | Suivi : statuts, notes, favoris, ajout manuel, export/import, installation sur l'écran d'accueil | Les données survivent à la fermeture de l'app sur le téléphone |
-| 5 | Sources OLX + Gratka | Annonces présentes, sans casser Otodom |
+| 5 | Sources OLX + Gratka (avancé avant le lot 3, à la demande de Nabil le 27/11) | Annonces présentes, sans casser Otodom. Gratka fait ; OLX bloqué (voir §2) |
 | 6 | Sources Morizon, Nieruchomosci-online, Domiporta + dédoublonnage | Doublons connus bien regroupés |
 
 ## 8. Prérequis de ton côté

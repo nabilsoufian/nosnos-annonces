@@ -1,3 +1,3 @@
-from . import otodom
+from . import gratka, otodom
 
-SOURCES = [otodom]
+SOURCES = [otodom, gratka]
