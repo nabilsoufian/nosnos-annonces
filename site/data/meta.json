@@ -1,19 +1,19 @@
 {
   "sources": {
     "otodom": {
-      "last_attempt": "2026-11-27T16:50:07+00:00",
-      "last_success": "2026-11-27T16:50:07+00:00",
+      "last_attempt": "2026-11-28T01:27:21+00:00",
+      "last_success": "2026-11-28T01:27:21+00:00",
       "count": 648,
       "error": null
     },
     "gratka": {
-      "last_attempt": "2026-11-27T16:50:07+00:00",
-      "last_success": "2026-11-27T16:50:07+00:00",
-      "count": 275,
+      "last_attempt": "2026-11-28T01:27:21+00:00",
+      "last_success": "2026-11-28T01:27:21+00:00",
+      "count": 257,
       "error": null
     }
   },
-  "updated_at": "2026-11-27T16:50:07+00:00",
+  "updated_at": "2026-11-28T01:27:21+00:00",
   "area_range": [
     120,
     220
